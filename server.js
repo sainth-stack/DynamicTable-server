@@ -119,13 +119,22 @@ app.get('/Qty-data', async (req, res) => {
     // Fetch data from MongoDB based on Spl and other conditions if needed
     const data = await DataModel.find();
 
-    const aggregateData = (data, header) => {
+    const aggregateData = (data, headers) => {
       const aggregatedData = data.reduce((result, record) => {
-        // Generate a key based on the value of the specified header
-        const key = record[header] || '';
+        // Generate a key based on the values of the specified headers
+        const key = headers.map(header => record[header] || '').join('_');
     
         // Initialize count for the key if not present
-        result[key] = (result[key] || 0) + 1;
+        result[key] = result[key] || { total: 0, monthlyCounts: {} };
+    
+        // Increment the total count
+        result[key].total++;
+    
+        // Extract the month from the record
+        const month = record['Month'];
+    
+        // Increment the count for the specific month
+        result[key].monthlyCounts[month] = (result[key].monthlyCounts[month] || 0) + 1;
     
         return result;
       }, {});
@@ -134,8 +143,8 @@ app.get('/Qty-data', async (req, res) => {
     };
     
     const aggregatedResults = {};
-    filters?.forEach(filter => {
-      const result = aggregateData(data || [], filter.split(','));
+    filters.forEach(filter => {
+      const result = aggregateData(data, filter.split(','));
       aggregatedResults[filter] = result;
     });
     res.json({aggregatedResults});
