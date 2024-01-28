@@ -115,15 +115,30 @@ app.get('/data', async (req, res) => {
 app.get('/Qty-data', async (req, res) => {
   try {
     // Extract Spl value from the request query
-    const { Spl } = req.query;
-
+    const filters= req.query.items;
     // Fetch data from MongoDB based on Spl and other conditions if needed
-    const data = await DataModel.find({ Spl });
+    const data = await DataModel.find();
 
-    // Extract the relevant information (Qty) from the data
-    const result = data.map(({ Spl, Month, Qty }) => ({ Spl, Month, Qty }));
-
-    res.json(result);
+    const aggregateData = (data, header) => {
+      const aggregatedData = data.reduce((result, record) => {
+        // Generate a key based on the value of the specified header
+        const key = record[header] || '';
+    
+        // Initialize count for the key if not present
+        result[key] = (result[key] || 0) + 1;
+    
+        return result;
+      }, {});
+    
+      return aggregatedData;
+    };
+    
+    const aggregatedResults = {};
+    filters?.forEach(filter => {
+      const result = aggregateData(data || [], filter.split(','));
+      aggregatedResults[filter] = result;
+    });
+    res.json({aggregatedResults});
   } catch (error) {
     console.error(error);
     res.status(500).send('Internal Server Error');
